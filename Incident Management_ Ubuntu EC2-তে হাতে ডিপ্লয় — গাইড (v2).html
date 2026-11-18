@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Incident Management: Ubuntu EC2-তে হাতে ডিপ্লয় — ধাপে ধাপে গাইড</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f5f1; --panel:#ffffff; --ink:#1d1c1a; --muted:#6b675f; --line:#e3e0d8;
+  --accent:#e8770c; --accent-soft:#fdf0e3; --blue:#2563a8; --blue-soft:#e8f0fa;
+  --green:#1f7a4c; --green-soft:#e5f4ec; --red:#b3261e; --red-soft:#fbeaea;
+  --purple:#6b3fa0; --purple-soft:#f1eafa; --code:#f1efe9;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#151514; --panel:#1e1e1c; --ink:#ecebe6; --muted:#a29e94; --line:#33322e;
+    --accent:#f59a3c; --accent-soft:#3a2a18; --blue:#7fb0e8; --blue-soft:#1b2838;
+    --green:#5cc48d; --green-soft:#16291f; --red:#f08a82; --red-soft:#341b1a;
+    --purple:#b893e6; --purple-soft:#271d33; --code:#262523;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hind Siliguri",system-ui,sans-serif;font-size:17px;line-height:1.65}
+code,pre,.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.86em}
+code{background:var(--code);padding:.08em .38em;border-radius:4px}
+a{color:var(--blue)}
+.wrap{display:grid;grid-template-columns:260px 1fr;max-width:1240px;margin:0 auto;gap:28px;padding:24px}
+@media (max-width:900px){.wrap{grid-template-columns:1fr}.side{position:static!important;max-height:none!important}}
+.side{position:sticky;top:20px;align-self:start;max-height:calc(100vh - 40px);overflow:auto}
+.side nav a{display:block;padding:5px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:15px}
+.side nav a:hover{background:var(--accent-soft)}
+.side nav .grp{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 10px 4px}
+.progress{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:8px}
+.bar>div{height:100%;background:var(--accent);width:0;transition:width .3s}
+h1{font-size:34px;line-height:1.2;margin:0 0 6px}
+h2{font-size:26px;margin:44px 0 12px;padding-top:8px;border-top:2px solid var(--ink)}
+h3{font-size:19px;margin:0}
+.lede{color:var(--muted);font-size:18px;margin:0 0 20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+.config{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media (max-width:700px){.config{grid-template-columns:1fr}}
+.config label{font-size:14px;color:var(--muted);display:block;margin-bottom:4px}
+.config input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-family:"JetBrains Mono",monospace;font-size:14px}
+.config input:focus{outline:2px solid var(--accent);border-color:transparent}
+.b{font-weight:600;color:var(--accent);font-family:"JetBrains Mono",monospace;font-size:.86em;background:var(--accent-soft);padding:.05em .35em;border-radius:4px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:12px 0;overflow:hidden}
+.step.done{border-color:var(--green)}
+.step.done .shead{background:var(--green-soft)}
+.shead{display:flex;gap:12px;align-items:center;padding:12px 16px;cursor:pointer;user-select:none}
+.shead input{width:20px;height:20px;accent-color:var(--green);flex:none;cursor:pointer}
+.snum{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--muted);flex:none;width:58px}
+.shead h3{flex:1}
+.chev{color:var(--muted);transition:transform .2s}
+.step.open .chev{transform:rotate(90deg)}
+.sbody{display:none;padding:2px 20px 18px 20px;border-top:1px solid var(--line)}
+.step.open .sbody{display:block}
+.sbody ol,.sbody ul{padding-left:22px;margin:10px 0}
+.sbody li{margin:4px 0}
+.why,.say,.rec,.warn,.shot{border-radius:8px;padding:10px 14px;margin:12px 0;font-size:16px}
+.why{background:var(--blue-soft);border-left:4px solid var(--blue)}
+.say{background:var(--purple-soft);border-left:4px solid var(--purple)}
+.rec{background:var(--accent-soft);border-left:4px solid var(--accent)}
+.warn{background:var(--red-soft);border-left:4px solid var(--red)}
+.shot{background:var(--green-soft);border-left:4px solid var(--green)}
+.tag{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:2px}
+.why .tag{color:var(--blue)} .say .tag{color:var(--purple)} .rec .tag{color:var(--accent)} .warn .tag{color:var(--red)} .shot .tag{color:var(--green)}
+.checkpoint{background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 16px;margin:16px 0;font-weight:600}
+pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;margin:8px 0;position:relative;line-height:1.5}
+.copy{position:absolute;top:8px;right:8px;font-family:"Hind Siliguri",sans-serif;font-size:13px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:3px 10px;cursor:pointer}
+.copy:hover{border-color:var(--accent)}
+table{border-collapse:collapse;width:100%;font-size:15px;margin:10px 0}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.scene{display:grid;grid-template-columns:64px 1fr 120px;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.scene:last-child{border:0}
+.scene .n{font-family:"JetBrains Mono",monospace;font-weight:600;color:var(--accent)}
+.scene .t{color:var(--muted);font-size:14px;text-align:right}
+.diagram svg{width:100%;height:auto;display:block}
+.small{font-size:14px;color:var(--muted)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<aside class="side">
+  <div class="progress">
+    <div style="display:flex;justify-content:space-between;font-size:14px"><b>অগ্রগতি</b><span id="pct">0 / 0</span></div>
+    <div class="bar"><div id="barfill"></div></div>
+  </div>
+  <nav>
+    <div class="grp">শুরু</div>
+    <a href="#setup">আপনার মানগুলো</a>
+    <a href="#video">ভিডিও প্ল্যান</a>
+    <a href="#arch">আর্কিটেকচার</a>
+    <div class="grp">মূল লাব</div>
+    <a href="#part-a">Part A — EC2 লঞ্চ</a>
+    <a href="#part-b">Part B — SSH ও ZIP</a>
+    <a href="#part-c">Part C — ইনস্টল</a>
+    <a href="#part-d">Part D — DB ও ডিপ্লয়</a>
+    <a href="#part-e">Part E — যাচাই</a>
+    <a href="#part-f">Part F — হাতে আবার ডিপ্লয়</a>
+    <div class="grp">ঐচ্ছিক + শেষ</div>
+    <a href="#part-g">Part G — GitHub Actions</a>
+    <a href="#part-h">Part H — Cleanup</a>
+    <div class="grp">শেখা</div>
+    <a href="#code">ফাইলগুলো লাইন ধরে</a>
+    <a href="#trouble">এরর হলে</a>
+    <a href="#shots">স্ক্রিনশট লিস্ট</a>
+  </nav>
+  <div class="btnrow"><button class="btn" id="expandAll">সব খুলুন</button><button class="btn" id="reset">টিক মুছুন</button></div>
+</aside>
+
+<main>
+<h1>Incident Management: Ubuntu EC2-তে হাতে ডিপ্লয় (Docker ছাড়া)</h1>
+<p class="lede">React, Express আর PostgreSQL দিয়ে বানানো একটা অ্যাপ নিজের হাতে একটা আসল সার্ভারে চালু করবেন: SSH দিয়ে ঢুকে, apt দিয়ে ইনস্টল করে, systemd আর Nginx দিয়ে। প্রতিটা ধাপে আছে <b>কী করবেন</b>, <span style="color:var(--blue)">কেন</span>, আর <span style="color:var(--purple)">ভিডিওতে কী বলবেন</span>।</p>
+
+<div class="rec"><span class="tag">ZIP পরিষ্কার করা হয়েছে, আর আমরা Ubuntu 26.04 ব্যবহার করছি</span>
+আপনার ZIP-এর (<code>Incident_Management_Project.zip</code>) ভেতরে দুটো অপ্রয়োজনীয় জিনিস ছিল। একটা হলো প্রজেক্টের <b>হুবহু আরেকটা কপি</b>, প্রজেক্টের ভেতরেই একই নামের ফোল্ডারে। আরেকটা হলো ট্রেনারের GitHub রিপোর (<code>Nure/...</code>) <code>.git</code> ইতিহাস। আমি এগুলো বাদ দিয়ে একটা পরিষ্কার ZIP বানিয়েছি, নাম <b><code>incident-management-ubuntu-ec2.zip</code></b>, যেটা নির্দেশনার নামের সাথে হুবহু মেলে। কোডের একটা লাইনও বদলাইনি। <b>এই ZIP-টাই ব্যবহার করবেন।</b>
+</div>
+
+<!-- SETUP -->
+<h2 id="setup">১. আপনার মানগুলো বসান</h2>
+<p>মান বসালে নিচের সব PowerShell আর ssh কমান্ড নিজে থেকেই তৈরি হয়ে যাবে।</p>
+<div class="card">
+  <div class="config">
+    <div><label>EC2 Public IPv4 (Step 1-এর পরে)</label><input id="cfg-ip" value="3.237.106.198" placeholder="54.123.45.67"></div>
+    <div><label>.pem ফাইলের পাথ (Windows)</label><input id="cfg-pem" value="$HOME\Downloads\asifiqrawave.pem"></div>
+    <div><label>ZIP-এর পাথ (Windows)</label><input id="cfg-zip" value="$HOME\Downloads\incident-management-ubuntu-ec2.zip"></div>
+    <div><label>GitHub username</label><input id="cfg-owner" value="abuabddullah"></div>
+    <div><label>Repo নাম (Part G)</label><input id="cfg-repo" value="bongodev-incident-native"></div>
+    <div><label>AWS Region</label><input id="cfg-region" value="us-east-1"></div>
+  </div>
+  <p class="small" style="margin:10px 0 0">মানগুলো শুধু আপনার ব্রাউজারে থাকে। Public IP প্রতিবার instance <b>Stop করে আবার Start</b> করলে বদলে যায়, তাই সতর্ক থাকবেন।</p>
+</div>
+
+<!-- VIDEO -->
+<h2 id="video">২. ভিডিও রেকর্ডিং প্ল্যান</h2>
+<div class="warn"><span class="tag">এই লাবে স্ক্রিনে কখনো আনবেন না</span>
+<ul style="margin:4px 0">
+<li><b><code>.pem</code> ফাইলের ভেতরের লেখা</b>, আর Part G-তে বানানো deploy key-র <b>private</b> অংশ (<code>bongodev_incident_deploy</code>, যার শেষে <code>.pub</code> নেই)। যে কেউ এটা দেখলে আপনার সার্ভারে ঢুকতে পারবে।</li>
+<li><b><code>backend/.env</code></b>-এর ভেতরের লেখা। ক্যামেরায় <code>cat backend/.env</code> চালাবেন না, কারণ এতে ডাটাবেসের পাসওয়ার্ড আছে। স্ক্রিপ্টগুলো নিজে পাসওয়ার্ড প্রিন্ট করে না, এটা আমি মিলিয়ে দেখেছি।</li>
+<li>GitHub-এ <b>Secret পেস্ট করার মুহূর্ত।</b> পেস্ট করার সময় বক্সে key-টা দেখা যায়, তাই তখন <b>রেকর্ডিং pause</b> করুন।</li>
+</ul>
+<b>BLUR করবেন:</b> কনসোলের উপরের ডানদিকে Account ID। আপনার বাসার IP-ও blur করবেন, যেটা Security group-এর "My IP" রুলে দেখা যায়।<br>
+<b>দেখালে সমস্যা নেই:</b> EC2-র public IP (লাব শেষে মুছে যাবে), <code>.pub</code> public key, host key fingerprint।
+</div>
+<div class="rec"><span class="tag">রেকর্ডিং সেটআপ</span>
+<ul style="margin:4px 0">
+<li>স্ক্রিনে থাকবে Chrome-এ AWS কনসোল, আর <b>Windows Terminal</b> দুটো ট্যাবসহ। <b>ট্যাব ১</b> = SSH দিয়ে EC2-র ভেতরে, <b>ট্যাব ২</b> = আপনার নিজের কম্পিউটারের PowerShell (scp করার জন্য)। দুটো ট্যাবের নাম বা রং আলাদা রাখুন, যাতে দর্শক বোঝে কোনটা কোন মেশিন।</li>
+<li>টার্মিনালের ফন্ট বড় করুন (<code>Ctrl + =</code>)। দর্শককে বোঝানোর জন্য প্রতিটা কমান্ড চালানোর আগে মুখে বলুন।</li>
+<li><b>অপেক্ষার সময়গুলোয় pause করুন:</b> install স্ক্রিপ্ট (৩–৫ মিনিট), <code>npm install</code> আর build (২–৪ মিনিট)।</li>
+</ul></div>
+<div class="card">
+<div class="scene"><div class="n">S0</div><div><b>ভূমিকা:</b> তিন স্তরের অ্যাপ আর এর আর্কিটেকচার। কেন আগে হাতে করছি, তারপর অটোমেট করব।</div><div class="t">~৩ মিনিট</div></div>
+<div class="scene"><div class="n">S1</div><div><b>Part A:</b> EC2 লঞ্চ করা: Ubuntu, t3.small, key pair, security group।</div><div class="t">~৫ মিনিট</div></div>
+<div class="scene"><div class="n">S2</div><div><b>Part B:</b> PowerShell থেকে SSH, তারপর scp দিয়ে ZIP পাঠানো, তারপর unzip।</div><div class="t">~৪ মিনিট</div></div>
+<div class="scene"><div class="n">S3</div><div><b>Part C:</b> Node.js, PostgreSQL আর Nginx আলাদা আলাদা ইনস্টল করা, আর প্রতিটা কী কাজ করে সেটা বলা।</div><div class="t">~৬ মিনিট</div></div>
+<div class="scene"><div class="n">S4</div><div><b>Part D:</b> ডাটাবেস সেটআপ আর ডিপ্লয় স্ক্রিপ্টের ৫টা ধাপ।</div><div class="t">~৫ মিনিট</div></div>
+<div class="scene"><div class="n">S5</div><div><b>Part E + F:</b> curl দিয়ে যাচাই, ব্রাউজারে incident বানানো, DB-তে প্রমাণ দেখানো, তারপর heading বদলে আবার ডিপ্লয়।</div><div class="t">~৬ মিনিট</div></div>
+<div class="scene"><div class="n">S6</div><div><b>Part G (ঐচ্ছিক):</b> GitHub Actions দিয়ে push করলেই ডিপ্লয়।</div><div class="t">~৮ মিনিট</div></div>
+<div class="scene"><div class="n">S7</div><div><b>Part H:</b> Terminate করা, আর GitHub-এর secret মুছে ফেলা।</div><div class="t">~২ মিনিট</div></div>
+</div>
+
+<!-- ARCH -->
+<h2 id="arch">৩. আর্কিটেকচার: কোন অংশ কী করে</h2>
+<div class="card diagram">
+<svg viewBox="0 0 760 400" xmlns="http://www.w3.org/2000/svg" font-family="Hind Siliguri, sans-serif">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>
+  <g font-size="14">
+    <rect x="20" y="150" width="140" height="60" rx="10" fill="var(--bg)" stroke="var(--line)"/>
+    <text x="90" y="176" text-anchor="middle" font-weight="600" fill="var(--ink)">আপনার ব্রাউজার</text>
+    <text x="90" y="196" text-anchor="middle" fill="var(--muted)" font-size="12">http://EC2-IP</text>
+
+    <rect x="200" y="20" width="540" height="365" rx="14" fill="none" stroke="var(--green)" stroke-dasharray="5 4"/>
+    <text x="470" y="42" text-anchor="middle" fill="var(--green)" font-size="13" font-weight="600">Ubuntu 24.04 EC2 · Security group: 80 সবার জন্য, 22 শুধু আপনার IP</text>
+
+    <rect x="230" y="150" width="160" height="60" rx="10" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="310" y="174" text-anchor="middle" font-weight="600" fill="var(--ink)">Nginx :80</text>
+    <text x="310" y="194" text-anchor="middle" fill="var(--muted)" font-size="12">reverse proxy</text>
+
+    <rect x="460" y="70" width="250" height="56" rx="10" fill="var(--blue-soft)" stroke="var(--blue)"/>
+    <text x="585" y="93" text-anchor="middle" font-weight="600" fill="var(--ink)">React-এর তৈরি ফাইল</text>
+    <text x="585" y="113" text-anchor="middle" fill="var(--muted)" font-size="12">/var/www/incident-management</text>
+
+    <rect x="460" y="190" width="250" height="60" rx="10" fill="var(--purple-soft)" stroke="var(--purple)"/>
+    <text x="585" y="214" text-anchor="middle" font-weight="600" fill="var(--ink)">Node.js/Express</text>
+    <text x="585" y="234" text-anchor="middle" fill="var(--muted)" font-size="12">127.0.0.1:5000 · systemd চালু রাখে</text>
+
+    <rect x="460" y="300" width="250" height="60" rx="10" fill="var(--green-soft)" stroke="var(--green)"/>
+    <text x="585" y="324" text-anchor="middle" font-weight="600" fill="var(--ink)">PostgreSQL</text>
+    <text x="585" y="344" text-anchor="middle" fill="var(--muted)" font-size="12">127.0.0.1:5432 · incidentdb</text>
+  </g>
+  <g stroke="var(--muted)" stroke-width="1.6" fill="none" marker-end="url(#ar)">
+    <line x1="160" y1="180" x2="228" y2="180"/>
+    <path d="M390 170 Q 420 100 458 98"/>
+    <path d="M390 190 Q 420 220 458 220"/>
+    <line x1="585" y1="250" x2="585" y2="298"/>
+  </g>
+  <g font-size="11.5" fill="var(--ink)" font-family="JetBrains Mono, monospace">
+    <text x="168" y="172">:80</text>
+    <text x="398" y="112">/ , /assets</text>
+    <text x="398" y="240">/api/* , /health</text>
+    <text x="592" y="282">SQL</text>
+  </g>
+</svg>
+</div>
+<div class="why"><span class="tag">প্রতিটা অংশের কাজ</span>
+<b>Nginx</b> সার্ভারের "সদর দরজা", বাইরের দুনিয়ার সাথে একমাত্র এটাই কথা বলে। কেউ <code>/</code> চাইলে Nginx React-এর তৈরি HTML, JS আর CSS ফাইল ডিস্ক থেকে সরাসরি পাঠিয়ে দেয়। <code>/api/...</code> চাইলে অনুরোধটা ভেতরে Node-এর কাছে পাঠায়। এভাবে মাঝখানে বসে অনুরোধ এগিয়ে দেওয়াকে বলে <b>reverse proxy</b>।<br>
+<b>Express (Node.js)</b> হলো ব্যবসার নিয়ম: incident বানানো, বদলানো, মোছা। এটা শুধু <code>127.0.0.1</code>-এ শোনে, মানে সার্ভারের ভেতর থেকেই শুধু এর কাছে পৌঁছানো যায়।<br>
+<b>PostgreSQL</b> ডেটা স্থায়ীভাবে রাখে। এটাও শুধু ভেতরের জন্য, port 5432 বাইরে খোলা নেই।<br>
+<b>systemd</b> হলো Ubuntu-র "সার্ভিস ম্যানেজার"। Node crash করলে এটা আবার চালু করে, আর সার্ভার reboot হলেও Node নিজে থেকে চালু হয়।
+</div>
+<div class="say"><span class="tag">ভিডিওতে বলুন (S0)</span>"আগের লাবে GitHub Actions দিয়ে সার্ভার বানিয়েছিলাম। আজ উল্টো দিক থেকে দেখব: একটা চালু সার্ভারে আসল অ্যাপ নিজের হাতে বসাব। কোনো Docker নেই, প্রতিটা অংশ সরাসরি Ubuntu-তে চলবে। অটোমেট করার আগে জানা দরকার কী কী অটোমেট করছি। বাইরের দুনিয়ার জন্য খোলা শুধু port 80। Node আর ডাটাবেস সার্ভারের ভেতরে লুকানো, শুধু Nginx তাদের সাথে কথা বলে।"</div>
+
+<!-- PART A -->
+<h2 id="part-a">Part A — EC2 লঞ্চ করুন</h2>
+
+<div class="step" data-id="s1"><div class="shead"><input type="checkbox"><span class="snum">Step 1</span><h3>Ubuntu EC2 লঞ্চ করুন</h3><span class="chev">▶</span></div><div class="sbody">
+<ol><li>Region <code data-bind="region">us-east-1</code> বেছে নিন। তারপর <b>EC2 → Instances → Launch instances</b> খুলুন।</li>
+<li><b>Name</b> দিন <code>bongodev-incident-ubuntu</code>।</li>
+<li><b>AMI:</b> Quick Start থেকে <b>Ubuntu</b>, Architecture <b>64-bit (x86)</b>। অ্যাসাইনমেন্টে বলা আছে <b>24.04 LTS</b>, তবে এখন Quick Start-এর ডিফল্ট <b>26.04 LTS</b>। <b>আমরা 26.04 ব্যবহার করছি</b>, তাই <a href="#s3b">Step 3b</a>-এ স্ক্রিপ্টের ভার্শন পরীক্ষাটা একটু বদলাতে হবে। Amazon Linux নেবেন না।</li>
+<li><b>Instance type:</b> <code>t3.small</code> (2 GiB RAM)।</li>
+<li><b>Key pair:</b> আপনার key-র নাম <code>asifiqrawave</code>, ফাইল <code>Downloads\asifiqrawave.pem</code>। নতুন বানালে Type <b>ED25519</b> আর Format <b>.pem</b> দেবেন (.ppk না)। Instance-এর Details ট্যাবে "Key pair assigned at launch"-এ এই নামটাই থাকতে হবে।</li>
+<li><b>Network settings → Edit</b> খুলুন। VPC থাকবে default, Subnet যেকোনো একটা, আর <b>Auto-assign public IP = Enable</b>।</li>
+<li><b>Create security group</b> বেছে নিন। নাম দিন <code>bongodev-incident-sg</code>, আর এই দুটো রুল যোগ করুন:
+<table><tr><th>Type</th><th>Port</th><th>Source</th></tr>
+<tr><td>SSH</td><td>22</td><td><b>My IP</b>। ISP একাধিক IP ব্যবহার করলে <code>103.174.150.0/24</code>-এর মতো একটা ছোট পরিসর দিন, নিচের সতর্কবার্তা দেখুন।</td></tr>
+<tr><td>HTTP</td><td>80</td><td>Anywhere-IPv4 (0.0.0.0/0)</td></tr></table></li>
+<li><b>Storage:</b> <code>20</code> GiB <b>gp3</b>।</li>
+<li><b>Launch instance</b> চাপুন। Instance state <b>Running</b> হলে <b>Public IPv4 address</b> কপি করে <a href="#setup">পেজের উপরে</a> বসান।</li></ol>
+<div class="why"><span class="tag">কেন এই সেটিংগুলো</span>
+<b>Ubuntu, Amazon Linux না:</b> স্ক্রিপ্টগুলো <code>apt</code> ব্যবহার করে আর শুরুতেই পরীক্ষা করে নেয় যে সিস্টেম Ubuntu 24.04 কিনা। অন্য কিছু হলে থেমে যাবে।<br>
+<b>t3.small:</b> React build (Vite) চলার সময় বেশ মেমরি লাগে। 1 GiB-এর t3.micro-তে build মাঝপথে "Killed" হয়ে যেতে পারে। t3.small free tier-এ পড়ে না, তবে খরচ খুব কম, আর কাজ শেষ হলেই terminate করবেন।<br>
+<b>ED25519 key:</b> RSA-র চেয়ে আধুনিক, ছোট আর দ্রুত। <code>.pem</code> হলো <b>private key</b>। AWS এর কোনো কপি রাখে না, তাই হারালে এই সার্ভারে আর ঢুকতে পারবেন না।<br>
+<b>Security group:</b> port 22 শুধু আপনার IP থেকে খোলা, তাই অন্য কেউ SSH চেষ্টাও করতে পারবে না। <b>5000 আর 5432 খুলবেন না।</b> Node আর DB-কে বাইরে থেকে কারো দেখার দরকার নেই, তাদের সাথে কথা বলে শুধু Nginx।
+</div>
+<div class="warn"><span class="tag">আমাদের অভিজ্ঞতা: "My IP" কাজ না করলে</span>আমাদের ক্ষেত্রে <code>checkip</code> একেকবার একেক IP দেখাচ্ছিল (<code>.98</code>, <code>.99</code>), আর AWS আসলে যে IP দেখছিল সেটা আবার এর কোনোটাই ছিল না। ফলে <code>/32</code> আর <code>/31</code> দুটোতেই <code>Connection timed out</code> এসেছিল। এভাবে খুঁজে পেয়েছি: SSH সাময়িকভাবে <code>0.0.0.0/0</code> করে ঢুকলাম, ভেতরে <code>echo $SSH_CLIENT</code> চালিয়ে <b>AWS যে IP দেখছে</b> সেটা বের করলাম, তারপর সাথে সাথে রুলটা সেই IP বা ছোট পরিসরে আটকে দিলাম। কোথায় সমস্যা, সেটা আলাদা করতে <code>Test-NetConnection github.com -Port 22</code> কাজে লাগে: True এলে বোঝা যায় ISP port 22 আটকায় না।</div>
+<div class="say"><span class="tag">ভিডিওতে বলুন</span>"Security group হলো সার্ভারের firewall। দুটো দরজা খোলা রাখছি: 80 সবার জন্য, যাতে যে কেউ ওয়েবসাইট দেখতে পারে, আর 22 শুধু আমার IP থেকে, যাতে শুধু আমি সার্ভারে ঢুকতে পারি। ডাটাবেসের দরজা 5432 ইচ্ছা করেই বন্ধ রাখছি।"</div>
+<div class="warn"><span class="tag">BLUR</span>Security group-এর "My IP" রুলে আপনার বাসার IP দেখা যায়, এডিটে blur করবেন।</div>
+<div class="shot"><span class="tag">স্ক্রিনশট</span><code>01-ec2-running.png</code> (Running, t3.small, Ubuntu; Account ID blur করা), <code>02-security-group.png</code> (Inbound rules, আপনার IP blur করা)</div>
+</div></div>
+
+<!-- PART B -->
+<h2 id="part-b">Part B — SSH দিয়ে ঢুকুন আর ZIP পাঠান</h2>
+
+<div class="step" data-id="s2"><div class="shead"><input type="checkbox"><span class="snum">Step 2</span><h3>PowerShell থেকে SSH করুন</h3><span class="chev">▶</span></div><div class="sbody">
+<p><b>প্রথমে .pem ফাইলের permission ঠিক করুন</b> (শুধু একবার করতে হয়, নিজের কম্পিউটারের PowerShell-এ):</p>
+<pre id="icacls"></pre>
+<p>তারপর সার্ভারে ঢুকুন:</p>
+<pre id="sshcmd"></pre>
+<ol><li>প্রথমবার ঢোকার সময় জিজ্ঞেস করবে <i>"Are you sure you want to continue connecting (yes/no)?"</i>। লিখুন <code>yes</code>।</li>
+<li>Prompt বদলে <code>ubuntu@ip-...:~$</code> হলে বুঝবেন আপনি এখন <b>EC2-র ভেতরে</b> আছেন। এবার যাচাই করুন:</li></ol>
+<pre>cat /etc/os-release
+whoami
+uname -m</pre>
+<p class="small">আউটপুটে <code>Ubuntu 26.04</code> (অথবা 24.04), ইউজার <code>ubuntu</code>, আর আর্কিটেকচার <code>x86_64</code> আসার কথা।</p>
+<div class="why"><span class="tag">কেন icacls</span>SSH খুব কড়া একটা নিয়ম মানে: private key অন্য কেউ পড়তে পারলে সেটা ব্যবহারই করবে না, আর এরর দেবে <i>"UNPROTECTED PRIVATE KEY FILE"</i>। Mac বা Linux-এ এটা ঠিক করতে <code>chmod 400</code> চালাতে হয়। Windows-এ একই কাজ করে <code>icacls</code>। প্রথম লাইন ফোল্ডার থেকে আসা উত্তরাধিকার-সূত্রের permission মুছে দেয়, আর দ্বিতীয় লাইন শুধু আপনাকে পড়ার অনুমতি দেয়।</div>
+<div class="why"><span class="tag">কেন "yes" জিজ্ঞেস করে</span>প্রতিটা সার্ভারের নিজস্ব একটা <b>host key</b> থাকে, যা দিয়ে সার্ভারকে চেনা যায়। প্রথমবার ঢোকার সময় আপনার কম্পিউটার এটা মনে রেখে দেয় (<code>known_hosts</code>)। পরে কেউ মাঝখানে বসে নকল সার্ভার সাজালে key মিলবে না, আর SSH সতর্ক করবে। Part G-তে এই একই ধারণা GitHub-এর জন্য ব্যবহার করব।</div>
+<div class="say"><span class="tag">ভিডিওতে বলুন</span>"Prompt বদলে গেছে, এখন আমি আমেরিকার একটা সার্ভারের ভেতরে। এখন থেকে যত কমান্ড চালাব সব ওই সার্ভারে চলবে, আমার কম্পিউটারে না।"</div>
+<div class="shot"><span class="tag">স্ক্রিনশট</span><code>03-ssh-connected.png</code> (os-release আর whoami-র আউটপুট)</div>
+</div></div>
+
+<div class="step" data-id="s3"><div class="shead"><input type="checkbox"><span class="snum">Step 3</span><h3>scp দিয়ে ZIP পাঠান আর unzip করুন</h3><span class="chev">▶</span></div><div class="sbody">
+<p><b>টার্মিনাল ট্যাব ২-এ</b>, অর্থাৎ নিজের কম্পিউটারের PowerShell-এ, SSH-এর ভেতরে না:</p>
+<pre id="scpcmd"></pre>
+<p><b>টার্মিনাল ট্যাব ১-এ</b>, অর্থাৎ EC2-র ভেতরে:</p>
+<pre>sudo apt-get update
+sudo apt-get install -y unzip
+cd /home/ubuntu
+unzip incident-management-ubuntu-ec2.zip
+cd incident-management-ubuntu-ec2
+ls -la</pre>
+<p class="small">ফোল্ডারে <code>frontend/ backend/ scripts/ deploy/ docs/</code> আর <code>step-by-step.md</code> দেখা যাওয়ার কথা।</p>
+<div class="why"><span class="tag">scp কী</span><b>scp</b> (secure copy) হলো SSH-এর মাধ্যমে ফাইল পাঠানোর উপায়। এটা একই key আর একই port 22 ব্যবহার করে, তাই নতুন করে কোনো দরজা খুলতে হয় না। ঠিকানার শেষে <code>:/home/ubuntu/</code> লেখার মানে "ওই সার্ভারের এই ফোল্ডারে রাখো"।</div>
+<div class="say"><span class="tag">ভিডিওতে বলুন</span>"এই ট্যাবটা আমার নিজের কম্পিউটার। এখান থেকে scp দিয়ে ZIP সার্ভারে পাঠাচ্ছি। এবার সার্ভারের ট্যাবে গিয়ে খুলব।"</div>
+</div></div>
+
+<div class="step" data-id="s3b" id="s3b"><div class="shead"><input type="checkbox"><span class="snum">Step 3b</span><h3>স্ক্রিপ্টে Ubuntu 26.04 অনুমতি দিন</h3><span class="chev">▶</span></div><div class="sbody">
+<p>প্রতিটা স্ক্রিপ্ট শুরুতেই পরীক্ষা করে সার্ভারটা ঠিক <code>24.04</code> কিনা, আর না হলে <code>Ubuntu 24.04 required</code> বলে থেমে যায়। আমাদের সার্ভার <b>26.04</b>, তাই এই একটা শর্তে 26.04 যোগ করছি। এর বাইরে কোডের আর কিছু বদলাচ্ছি না।</p>
+<p><b>EC2-তে</b>, প্রজেক্ট ফোল্ডারের ভেতরে চালান:</p>
+<pre>grep -E '^(PRETTY_NAME|VERSION_ID)=' /etc/os-release
+sed -i "s/\"\$VERSION_ID\" == '24.04'/( \"\$VERSION_ID\" == '24.04' || \"\$VERSION_ID\" == '26.04' )/" scripts/*.sh
+grep -n "VERSION_ID" scripts/*.sh</pre>
+<p class="small">শেষ কমান্ডের আউটপুটে ৬টা লাইন আসবে, প্রতিটায় লেখা থাকবে <code>"$VERSION_ID" == '24.04' || "$VERSION_ID" == '26.04'</code>। আমি এই কমান্ড আগে পরীক্ষা করে দেখেছি: সব স্ক্রিপ্টের syntax ঠিক থাকে, আর 26.04-এ পরীক্ষাটা পাস করে।</p>
+<div class="why"><span class="tag">এটা কেন ঠিক আছে, আর কোথায় ঝুঁকি</span>
+স্ক্রিপ্টের এই পরীক্ষা একটা <b>সুরক্ষা</b> (fail fast): অচেনা OS-এ চালালে ভুল প্যাকেজ বসে যেতে পারত, তাই আগেই থেমে যায়। 26.04 আর 24.04 দুটোই Ubuntu LTS, একই <code>apt</code>, <code>systemd</code> আর Nginx-এর ফোল্ডার কাঠামো। তাই স্ক্রিপ্টের বাকি অংশ একইভাবে কাজ করার কথা।<br>
+<b>পার্থক্য যা থাকবে:</b> PostgreSQL-এর ভার্শন নতুন হবে, কারণ 26.04-এর নিজস্ব ভাণ্ডারে নতুনটা আছে। Node.js আসবে NodeSource থেকে, তাই সেটা 24-ই থাকবে।<br>
+<b>অ্যাসাইনমেন্টের দিক থেকে:</b> চেকলিস্টে লেখা "Ubuntu 24.04"। তাই README-তে পরিষ্কার লিখে দেব যে 26.04 ব্যবহার করেছি, আর কেন, আর কী বদলেছি। কোনো ধাপে অপ্রত্যাশিত এরর এলে সবচেয়ে নিরাপদ সমাধান হলো 24.04 দিয়ে নতুন instance।</div>
+<div class="say"><span class="tag">ভিডিওতে বলুন</span>"স্ক্রিপ্ট আমার সার্ভারে চলতে রাজি হয়নি, কারণ এটা নতুন Ubuntu 26.04। এটা ভালো লক্ষণ: স্ক্রিপ্ট আগেই OS যাচাই করে নেয়। আমি শুধু ভার্শন পরীক্ষার শর্তে 26.04 যোগ করছি, বাকি কোড অপরিবর্তিত।"</div>
+</div></div>
+
+<!-- PART C -->
+<h2 id="part-c">Part C — Node.js, PostgreSQL, Nginx ইনস্টল করুন (Choice A)</h2>
+<p>আমরা <b>Choice A</b> নিচ্ছি, মানে তিনটা আলাদা স্ক্রিপ্ট আলাদা করে চালাব। প্রতিটার পরে ক্যামেরায় এক লাইনে বলবেন সেটা কী কাজ করে। <code>install-ubuntu.sh</code> (Choice B) <b>চালাবেন না</b>, তাতে একই জিনিস আবার ইনস্টল হবে।</p>
+
+<div class="step" data-id="s4"><div class="shead"><input type="checkbox"><span class="snum">Step 4</span><h3>তিনটা ইনস্টল স্ক্রিপ্ট চালান</h3><span class="chev">▶</span></div><div class="sbody">
+<p><b>Node.js 24:</b></p>
+<pre>bash scripts/install-nodejs-ubuntu.sh
+node --version
+npm --version</pre>
+<div class="why"><span class="tag">কী হলো</span>Ubuntu-র নিজস্ব apt ভাণ্ডারে Node.js-এর পুরনো ভার্শন থাকে। তাই স্ক্রিপ্ট <b>NodeSource</b>-এর আলাদা ভাণ্ডার যোগ করে। সেই ভাণ্ডারের GPG key-ও যোগ করে, যাতে apt যাচাই করতে পারে যে প্যাকেজটা আসল। তারপর Node 24 ইনস্টল করে। <code>node</code> JavaScript চালায়, আর <code>npm</code> লাইব্রেরি নামায়।</div>
+<p><b>PostgreSQL:</b></p>
+<pre>bash scripts/install-postgresql-ubuntu.sh
+psql --version
+sudo systemctl status postgresql --no-pager</pre>
+<div class="why"><span class="tag">কী হলো</span>Ubuntu-র নিজস্ব ভাণ্ডার থেকে PostgreSQL ইনস্টল হলো: 24.04-এ সাধারণত 16, 26.04-এ এর চেয়ে নতুন। আসল ভার্শন <code>psql --version</code>-এ দেখবেন। তারপর <code>systemctl enable --now</code> দিয়ে এখনই চালু হলো, আর ঠিক করা হলো যে প্রতিবার boot-এর সময়ও চালু হবে। <code>status</code>-এ <b>active</b> দেখাবে।</div>
+<p><b>Nginx:</b></p>
+<pre>bash scripts/install-nginx-ubuntu.sh
+nginx -v
+sudo systemctl status nginx --no-pager</pre>
+<div class="why"><span class="tag">কী হলো</span>Nginx চালু হয়েছে, আর এখনই <code>http://<span data-bind="ip">EC2_PUBLIC_IP</span>/</code> খুললে Nginx-এর ডিফল্ট "Welcome to nginx!" পেজ দেখাবে। ক্যামেরায় এটা দেখানো ভালো, কারণ এতে বোঝা যায় port 80 আর security group ঠিকমতো কাজ করছে।</div>
+<p><b>বাকি সহায়ক টুল:</b></p>
+<pre>sudo apt-get install -y git curl openssl rsync</pre>
+<div class="say"><span class="tag">ভিডিওতে বলুন</span>"Ubuntu-তে সফটওয়্যার ইনস্টল হয় apt দিয়ে, মোবাইলের Play Store-এর মতো। Node নতুন ভার্শন লাগবে বলে NodeSource-এর ভাণ্ডার যোগ করা হলো। তিনটা সার্ভিসই এখন systemd-এর অধীনে চলছে।"</div>
+<div class="shot"><span class="tag">স্ক্রিনশট</span><code>04-versions.png</code>: এই তিনটা কমান্ড একসাথে চালিয়ে এক স্ক্রিনে ধরুন: <code>node -v; psql --version; nginx -v</code></div>
+</div></div>
+
+<!-- PART D -->
+<h2 id="part-d">Part D — ডাটাবেস সেটআপ আর ডিপ্লয়</h2>
+
+<div class="step" data-id="s5"><div class="shead"><input type="checkbox"><span class="snum">Step 5</span><h3>ডাটাবেস আর ইউজার তৈরি করুন</h3><span class="chev">▶</span></div><div class="sbody">
+<pre>bash scripts/setup-database.sh</pre>
+<p>এরপর যাচাই করুন। এই দুটো কমান্ড পাসওয়ার্ড দেখায় না:</p>
+<pre>sudo -u postgres psql -c '\l'
+sudo -u postgres psql -c '\du'
+ls -l backend/.env</pre>
+<p class="small"><code>\l</code>-এ <code>incidentdb</code> দেখাবে, যার owner <code>incident_user</code>। <code>\du</code>-তে <code>incident_user</code> দেখাবে। <code>ls -l</code>-এ permission দেখাবে <code>-rw-------</code>। <b><code>cat backend/.env</code> চালাবেন না।</b></p>
+<div class="why"><span class="tag">স্ক্রিপ্ট যা করে</span>
+<ol style="margin:4px 0">
+<li><code>openssl rand -hex 24</code> দিয়ে ৪৮ অক্ষরের একটা এলোমেলো পাসওয়ার্ড তৈরি করে।</li>
+<li><code>backend/.env</code>-এ সেটা লেখে, আর permission দেয় <code>600</code>, মানে শুধু <code>ubuntu</code> ইউজার পড়তে পারবে। <code>.gitignore</code>-এ <code>.env</code> আছে, তাই ভুল করেও এটা GitHub-এ যাবে না।</li>
+<li>PostgreSQL-এর admin (<code>postgres</code>) হিসেবে <code>incident_user</code> নামে একটা <b>সাধারণ</b> ইউজার আর <code>incidentdb</code> ডাটাবেস বানায়।</li>
+<li>নতুন ইউজার আর পাসওয়ার্ড দিয়ে একবার ঢুকে পরীক্ষা করে।</li></ol>
+<b>অ্যাপ admin হিসেবে না, আলাদা ইউজার হিসেবে কেন?</b> এটা least privilege। অ্যাপে কোনো বাগ থাকলে বা কেউ হ্যাক করলে সে শুধু নিজের ডাটাবেসে হাত দিতে পারবে, পুরো PostgreSQL সার্ভারে না।<br>
+<b>Table কে বানায়?</b> স্ক্রিপ্ট বানায় না। অ্যাপ প্রথমবার চালু হওয়ার সময় নিজে <code>CREATE TABLE IF NOT EXISTS</code> চালায়, আর টেবিল খালি থাকলে দুটো নমুনা incident যোগ করে।
+</div>
+<div class="say"><span class="tag">ভিডিওতে বলুন</span>"পাসওয়ার্ড আমি নিজে লিখছি না, স্ক্রিপ্ট এলোমেলোভাবে বানিয়ে .env ফাইলে রেখে দিচ্ছে, যেটা শুধু আমার ইউজার পড়তে পারে। ভিডিওতে ইচ্ছা করেই ফাইলটা খুলছি না।"</div>
+<div class="shot"><span class="tag">স্ক্রিনশট</span><code>05-db-setup.png</code> (<code>\l</code> আর <code>\du</code>-র আউটপুট)</div>
+</div></div>
+
+<div class="step" data-id="s6"><div class="shead"><input type="checkbox"><span class="snum">Step 6</span><h3>অ্যাপ ডিপ্লয় করুন</h3><span class="chev">▶</span></div><div class="sbody">
+<pre>bash scripts/deploy-ubuntu.sh</pre>
+<p>স্ক্রিপ্ট <b>৫টা ধাপে</b> চলবে। প্রতিটা <code>[n/5]</code> লেখা দেখা গেলে ক্যামেরায় বলুন সেই ধাপে কী হচ্ছে:</p>
+<table>
+<tr><th>ধাপ</th><th>কী হয়</th><th>কেন</th></tr>
+<tr><td><code>[1/5]</code> dependencies</td><td>backend আর frontend-এ <code>npm install</code></td><td>Express, pg, React, Vite ইত্যাদি লাইব্রেরি নামায়</td></tr>
+<tr><td><code>[2/5]</code> build</td><td><code>npm run build</code> চালিয়ে <code>frontend/dist/</code> তৈরি</td><td>JSX ব্রাউজার সরাসরি বোঝে না। Vite এটাকে ছোট আর দ্রুত লোড হওয়া সাধারণ JS আর CSS ফাইলে রূপান্তর করে।</td></tr>
+<tr><td><code>[3/5]</code> copy</td><td><code>dist/</code> → <code>/var/www/incident-management</code>, owner <code>www-data</code></td><td>Nginx এই ফোল্ডার থেকে ফাইল পাঠায়। <code>www-data</code> হলো Nginx-এর নিজের ইউজার।</td></tr>
+<tr><td><code>[4/5]</code> systemd</td><td><code>incident-backend.service</code> তৈরি, তারপর enable আর restart</td><td>Node-কে স্থায়ী সার্ভিস বানায়। crash হলে ৩ সেকেন্ড পরে আবার চালু হয়।</td></tr>
+<tr><td><code>[5/5]</code> nginx</td><td>সাইট কনফিগ বসায়, default সাইট সরায়, <code>nginx -t</code> চালায়, তারপর reload</td><td>Nginx-কে বলা হয় "/ হলে এই ফোল্ডার থেকে দাও, /api হলে Node-এর কাছে পাঠাও"। <code>-t</code> কনফিগ পরীক্ষা করে, ভুল থাকলে reload করে না।</td></tr>
+</table>
+<p>শেষে স্ক্রিপ্ট <code>http://127.0.0.1:5000/health</code> পরীক্ষা করে। <code>"status":"healthy"</code> দেখালে <b>Deployment complete</b>।</p>
+<div class="say"><span class="tag">ভিডিওতে বলুন</span>"এই একটা স্ক্রিপ্টই আসল ডিপ্লয়। আমি SSH করে ঢুকে নিজের হাতে চালাচ্ছি, তাই এটা manual deployment। পরের অংশে GitHub Actions ঠিক এই স্ক্রিপ্টটাই আমার হয়ে চালাবে।"</div>
+<div class="shot"><span class="tag">স্ক্রিনশট</span><code>06-deploy-complete.png</code> (শেষ অংশ: health JSON আর "Deployment complete")</div>
+</div></div>
+
+<!-- PART E -->
+<h2 id="part-e">Part E — যাচাই করুন</h2>
+
+<div class="step" data-id="s7"><div class="shead"><input type="checkbox"><span class="snum">Step 7</span><h3>সার্ভারের ভেতর থেকে যাচাই করুন</h3><span class="chev">▶</span></div><div class="sbody">
+<pre>bash scripts/verify.sh http://127.0.0.1
+bash scripts/check-services.sh
+sudo systemctl status incident-backend --no-pager
+sudo nginx -t
+curl http://127.0.0.1/health
+curl http://127.0.0.1/api/incidents</pre>
+<ul><li><code>verify.sh</code> আউটপুট দেবে <b>PASS</b>।</li>
+<li><code>check-services.sh</code> দেখাবে তিনটা সার্ভিস <b>active</b>। নিচের socket লিস্টে <b>খেয়াল করুন</b>: <code>:80</code> শুনছে <code>0.0.0.0</code>-এ, মানে সবার জন্য খোলা। আর <code>:5000</code> আর <code>:5432</code> শুনছে <code>127.0.0.1</code>-এ, মানে শুধু ভেতরের জন্য।</li>
+<li><code>/health</code> দেখাবে <code>{"status":"healthy","database":"connected"}</code>।</li></ul>
+<div class="why"><span class="tag">127.0.0.1 মানে কী</span><code>127.0.0.1</code> (localhost) হলো "এই মেশিন নিজেই"। Node এই ঠিকানায় শোনে বলে বাইরের কেউ সরাসরি port 5000-এ পৌঁছাতে পারে না, security group খোলা থাকলেও না। এখানে নিরাপত্তার দুটো স্তর আছে: firewall বন্ধ, <b>আর</b> সার্ভিস নিজেও শুধু ভেতরে শোনে।</div>
+<div class="say"><span class="tag">ভিডিওতে বলুন</span>"এই লিস্টটা দেখুন। 80 সবার জন্য খোলা, কিন্তু 5000 আর 5432 শুধু 127.0.0.1-এ, মানে শুধু এই সার্ভারের ভেতর থেকে। এটাই আমাদের নিরাপত্তার নকশা।"</div>
+<div class="shot"><span class="tag">স্ক্রিনশট</span><code>07-backend-status-health.png</code> (systemctl status আর curl /health), <code>08-verify-check-services.png</code> (PASS আর socket লিস্ট)</div>
+</div></div>
+
+<div class="step" data-id="s8"><div class="shead"><input type="checkbox"><span class="snum">Step 8</span><h3>ব্রাউজারে অ্যাপ ব্যবহার করুন আর DB-তে প্রমাণ দেখান</h3><span class="chev">▶</span></div><div class="sbody">
+<ol><li>নিজের ব্রাউজারে খুলুন: <b><span class="b" id="siteurl"></span></b>। এটা <b>http</b>, https না।</li>
+<li><b>Incident Command Center</b> খুলবে, সাথে ২টা নমুনা incident।</li>
+<li>একটা নতুন incident বানান, যেমন title <i>"Website down after deploy"</i>, severity <b>high</b>।</li>
+<li>এর status বদলে দিন, যেমন open থেকে <b>investigating</b>।</li>
+<li><b>পেজ refresh করুন (F5)।</b> incident আর তার নতুন status আগের মতোই থাকবে।</li>
+<li>একটা incident <b>Delete</b> করে দেখুন।</li></ol>
+<p>এবার API দিয়ে একটা যোগ করুন, তারপর সরাসরি ডাটাবেস থেকে প্রমাণ দেখান (EC2-তে):</p>
+<pre>curl -i -X POST http://127.0.0.1/api/incidents \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"EC2 deployment test","description":"Created using curl","severity":"low"}'
+
+sudo -u postgres psql -d incidentdb -c 'SELECT id, title, severity, status FROM incidents ORDER BY id DESC;'</pre>
+<div class="why"><span class="tag">refresh করলে থাকে কেন</span>ব্রাউজারে বোতাম চাপলে <code>fetch('/api/incidents')</code> চলে। অনুরোধটা যায় Nginx-এ, Nginx পাঠায় Express-এ, আর Express <code>INSERT</code> বা <code>UPDATE</code> চালায় PostgreSQL-এ। ডেটা থাকে ডিস্কে, ব্রাউজারে না। তাই refresh করলে, Node restart করলে, এমনকি সার্ভার reboot করলেও ডেটা হারায় না।</div>
+<div class="say"><span class="tag">ভিডিওতে বলুন</span>"Refresh করলাম, incident আগের মতোই আছে। এবার সরাসরি ডাটাবেসে SELECT চালিয়ে দেখাচ্ছি, ব্রাউজারে যা বানিয়েছি আর curl দিয়ে যা যোগ করেছি, দুটোই এখানে আছে।"</div>
+<div class="shot"><span class="tag">স্ক্রিনশট</span><code>09-website.png</code> (অ্যাপের পুরো পেজ, address bar-এ IP দেখা যায়), <code>10-incident-created.png</code> (নতুন incident, status বদলানো), <code>11-db-proof.png</code> (psql SELECT-এর আউটপুট)</div>
+</div></div>
+
+<!-- PART F -->
+<h2 id="part-f">Part F — হাতে আবার ডিপ্লয় করুন, আর systemd ও Nginx বুঝুন</h2>
+
+<div class="step" data-id="s9"><div class="shead"><input type="checkbox"><span class="snum">Step 9</span><h3>Heading বদলে আবার ডিপ্লয় করুন</h3><span class="chev">▶</span></div><div class="sbody">
+<p><b>উপায় ১ (nano দিয়ে, যেমন নির্দেশনায় বলা):</b></p>
+<pre>nano +101 frontend/src/main.jsx</pre>
+<p class="small"><code>+101</code> দিলে nano সরাসরি ১০১ নম্বর লাইনে চলে যায়, যেখানে <code>&lt;h1&gt;Incident Command Center&lt;/h1&gt;</code> আছে। লেখাটা বদলে করুন <code>Incident Command Center — Updated Manually</code>। এরপর সেভ করতে <b>Ctrl+O</b>, তারপর <b>Enter</b>, তারপর বের হতে <b>Ctrl+X</b>।</p>
+<p><b>উপায় ২ (এক লাইনের কমান্ড):</b> Windows টার্মিনালে "—" (em dash) টাইপ করা কঠিন হলে এটা ব্যবহার করুন। আমি পরীক্ষা করে দেখেছি এটা কাজ করে:</p>
+<pre>sed -i 's|&lt;h1&gt;Incident Command Center&lt;/h1&gt;|&lt;h1&gt;Incident Command Center \xe2\x80\x94 Updated Manually&lt;/h1&gt;|' frontend/src/main.jsx
+grep -n "Command Center" frontend/src/main.jsx</pre>
+<p>তারপর আবার ডিপ্লয় করুন:</p>
+<pre>bash scripts/deploy-ubuntu.sh</pre>
+<p>ব্রাউজারে <b>Ctrl+F5</b> চাপুন (hard refresh)। নতুন heading দেখা যাবে, <b>আর আগের সব incident যেমন ছিল তেমনই থাকবে।</b></p>
+<div class="why"><span class="tag">কেন আবার ডিপ্লয় লাগল, অথচ incident বানাতে লাগেনি</span>React-এর কোড (<code>main.jsx</code>) বদলালে তৈরি করা <code>dist/</code> ফাইলগুলো পুরনোই থেকে যায়। Nginx তো <code>/var/www</code> থেকে সেই পুরনো ফাইলই দিচ্ছে। তাই <b>আবার build করে কপি</b> করতে হয়। অন্যদিকে incident হলো <b>ডেটা</b>, সেটা চলমান অবস্থায় DB-তে লেখা হয়, কোডে কোনো পরিবর্তন লাগে না।<br>
+<b>ডেটা কেন হারাল না:</b> স্ক্রিপ্ট DB-তে হাত দেয় না, আর <code>CREATE TABLE IF NOT EXISTS</code> আগে থেকে থাকা টেবিল ছুঁয়েও দেখে না। এই স্ক্রিপ্ট যতবারই চালান, ফলাফল একই থাকে (<b>idempotent</b>)।<br>
+<b>Ctrl+F5 কেন:</b> ব্রাউজার পুরনো JS ফাইল cache-এ রেখে দিতে পারে।</div>
+<div class="say"><span class="tag">ভিডিওতে বলুন</span>"কোড বদলেছি, তাই আবার build আর ডিপ্লয় করলাম। কিন্তু ডেটা আছে আগের মতোই, কারণ ডিপ্লয় স্ক্রিপ্ট ডাটাবেসে হাত দেয় না। এটা হলো application redeploy, সার্ভার নতুন করে বানানো না।"</div>
+<div class="shot"><span class="tag">স্ক্রিনশট</span><code>12-heading-updated-manually.png</code> (নতুন heading, সাথে আগের incidentগুলো)</div>
+</div></div>
+
+<div class="step" data-id="s10"><div class="shead"><input type="checkbox"><span class="snum">Step 10</span><h3>systemd আর Nginx কীভাবে কাজ করে দেখুন</h3><span class="chev">▶</span></div><div class="sbody">
+<pre>sudo systemctl status incident-backend --no-pager
+sudo journalctl -u incident-backend -n 80 --no-pager
+sudo systemctl restart incident-backend
+cat /etc/systemd/system/incident-backend.service
+cat deploy/nginx-incident-management.conf</pre>
+<p><b>Crash হলে systemd কী করে, ক্যামেরায় দেখান (ঐচ্ছিক, তবে দেখতে ভালো লাগে):</b></p>
+<pre>sudo systemctl kill -s SIGKILL incident-backend
+sleep 5
+sudo systemctl status incident-backend --no-pager | head -5</pre>
+<p class="small">Node-কে জোর করে মেরে ফেলা হলো। কিন্তু ৩ সেকেন্ড পরে systemd নিজেই আবার চালু করে দেবে (<code>Restart=on-failure</code>), আর status-এ নতুন PID আর "active (running)" দেখা যাবে।</p>
+<div class="why"><span class="tag">তিনটা প্রশ্নের উত্তর (নির্দেশনায় চাওয়া)</span>
+<b>Backend crash করলে কে চালু করে?</b> systemd, কারণ service ফাইলে <code>Restart=on-failure</code> আর <code>RestartSec=3</code> দেওয়া আছে।<br>
+<b>Backend 127.0.0.1:5000-এ কেন শোনে?</b> যাতে শুধু Nginx তার কাছে পৌঁছাতে পারে। বাইরের সব অনুরোধ Nginx হয়ে আসবে, যেখানে পরে TLS, rate limit বা log যোগ করা যায়।<br>
+<b>PostgreSQL ইন্টারনেট থেকে কেন খোলা নয়?</b> ডাটাবেস সবচেয়ে মূল্যবান জিনিস। বাইরে খোলা থাকলে পুরো দুনিয়ার bot পাসওয়ার্ড অনুমান করার চেষ্টা করবে। অ্যাপ আর DB একই মেশিনে, তাই বাইরে খোলার দরকারই নেই।</div>
+</div></div>
+
+<!-- PART G -->
+<h2 id="part-g">Part G — (ঐচ্ছিক) GitHub Actions দিয়ে অটো-ডিপ্লয়</h2>
+<div class="rec"><span class="tag">শুরুর আগে: সার্ভার চালু রাখুন</span>Part G-র জন্য এই একই EC2 চালু থাকতে হবে। তাই মূল লাবের সব স্ক্রিনশট (১–১২) নেওয়া হয়ে গেলে <b>terminate না করে</b> এখানে আসুন। এই workflow নতুন সার্ভার বানায় না, চালু থাকা সার্ভারে শুধু নতুন কোড পাঠায়।</div>
+<div class="warn"><span class="tag">একটা বড় সমস্যা আছে, আগে জেনে রাখুন</span>
+GitHub-এর runner SSH দিয়ে আপনার EC2-তে ঢুকবে। কিন্তু security group-এ port 22 খোলা <b>শুধু আপনার বাসার IP</b>-র জন্য, আর GitHub runner-এর IP প্রতিবার বদলায়। ফলে deploy ধাপে <code>Connection timed out</code> আসবে। নির্দেশনায় পরিষ্কার বলা আছে, <b>22 সবার জন্য খুলে দেবেন না (0.0.0.0/0)</b>।<br><br>
+<b>সমাধান</b> আমরা Step 14-এ এসে একসাথে ঠিক করব। আমার পছন্দের উপায় হলো লাব ২-এর <b>OIDC</b> কাজে লাগানো: workflow চলার সময় শুধু ওই মুহূর্তের runner IP-র জন্য ২২ খুলবে, আর কাজ শেষ হলে আবার বন্ধ করবে। এর জন্য <code>deploy.yml</code>-এ দুটো ধাপ যোগ করতে হবে।
+</div>
+
+<div class="step" data-id="s11"><div class="shead"><input type="checkbox"><span class="snum">Step 11</span><h3>GitHub repo বানান আর push করুন (শুধু CI)</h3><span class="chev">▶</span></div><div class="sbody">
+<ol><li>GitHub-এ নতুন repo বানান, নাম <code><span data-bind="repo">bongodev-incident-native</span></code>। <b>Private</b> রাখা ভালো। README যোগ করবেন না।</li>
+<li>নিজের কম্পিউটারে <b><code>incident-management-ubuntu-ec2-u2604.zip</code></b> খুলে ফোল্ডারটা VS Code-এ খুলুন। এটা পরিষ্কার ZIP, যাতে 26.04-এর অনুমতি আগে থেকেই যোগ করা। <b>জরুরি:</b> GitHub Actions রিপোর কোড দিয়ে সার্ভারের সব ফাইল বদলে দেয় (<code>rsync --delete</code>)। তাই রিপোর স্ক্রিপ্টে 26.04-এর অনুমতি না থাকলে deploy আবার "Ubuntu 24.04 required" বলে থেমে যাবে।</li>
+<li>VS Code-এর টার্মিনালে চালান:</li></ol>
+<pre id="gitcmds3"></pre>
+<p><code>git status</code>-এ <code>backend/.env</code> থাকার কথা না। এটা লোকাল ফোল্ডারে নেইও, শুধু সার্ভারে আছে।</p>
+<div class="why"><span class="tag">কী ঘটবে</span>Push করলেই workflow চলবে। <b>build</b> job (npm install, syntax check, React build) সবুজ হবে। <b>deploy</b> job দেখবে কোনো secret সেট করা নেই, তাই লিখবে "Deployment not configured: skipping"। এটা ইচ্ছা করেই এভাবে বানানো: আগে প্রমাণ হলো কোড ঠিকমতো build হয় (CI), তারপর ডিপ্লয় (CD)।</div>
+</div></div>
+
+<div class="step" data-id="s12"><div class="shead"><input type="checkbox"><span class="snum">Step 12</span><h3>আলাদা deploy key বানিয়ে EC2-তে বসান</h3><span class="chev">▶</span></div><div class="sbody">
+<p>নিজের কম্পিউটারের PowerShell-এ চালান। Passphrase চাইলে দুবার শুধু <b>Enter</b> চাপুন:</p>
+<pre>ssh-keygen -t ed25519 -f "$HOME\.ssh\bongodev_incident_deploy" -C "github-actions-incident-deploy"</pre>
+<p>Public key-টা EC2-র <code>authorized_keys</code>-এ যোগ করুন। এই কমান্ড আপনার পুরনো .pem দিয়ে ঢুকে কাজটা করবে:</p>
+<pre id="addkey"></pre>
+<p>নতুন key দিয়ে ঢুকতে পারছেন কিনা পরীক্ষা করুন:</p>
+<pre id="testkey"></pre>
+<div class="why"><span class="tag">আলাদা key কেন, .pem দিলেই তো হতো</span>.pem হলো আপনার নিজের "মাস্টার চাবি"। GitHub-কে দিলে আর ফেরত নেওয়া যাবে না, কারণ AWS key pair বদলাতে হলে সার্ভারটাই নতুন করে বানাতে হয়। আলাদা deploy key দিলে কাজ শেষে <code>authorized_keys</code> থেকে শুধু ওই একটা লাইন মুছলেই GitHub-এর প্রবেশাধিকার বন্ধ হয়ে যায়। Passphrase ছাড়া key বানানো শুধু এই disposable লাবের জন্য ঠিক আছে।</div>
+<div class="warn"><span class="tag">স্ক্রিনে আনবেন না</span><code>bongodev_incident_deploy</code> (<code>.pub</code> ছাড়া) ফাইলটা private key। এটা খুলবেন না, ক্যামেরায়ও দেখাবেন না।</div>
+</div></div>
+
+<div class="step" data-id="s13"><div class="shead"><input type="checkbox"><span class="snum">Step 13</span><h3>সার্ভারের host key যাচাই করুন</h3><span class="chev">▶</span></div><div class="sbody">
+<p><b>EC2-তে</b> fingerprint দেখুন:</p>
+<pre>sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</pre>
+<p><b>নিজের PowerShell-এ</b> (<code>Out-File -Encoding ascii</code> দেওয়া জরুরি, কারণ PowerShell-এর সাধারণ <code>&gt;</code> ফাইলটা UTF-16-এ লেখে, যা ssh পড়তে পারে না):</p>
+<pre id="keyscan"></pre>
+<p>দুটো fingerprint (<code>SHA256:...</code>) <b>হুবহু মিলতে হবে।</b> মিললে <code>ec2-host-key.txt</code>-এর পুরো লাইনটাই পরে <code>EC2_SSH_KNOWN_HOSTS</code> secret-এ বসাবেন।</p>
+<div class="why"><span class="tag">কেন</span>Workflow চলে <code>StrictHostKeyChecking=yes</code> দিয়ে, মানে চেনা সার্ভার ছাড়া অন্য কোথাও ঢুকবে না। কেউ মাঝখানে বসে নকল সার্ভার সাজালে runner তার কাছে কোড বা key পাঠাবে না। Step 2-এ আপনি নিজে "yes" লিখেছিলেন। এখানে GitHub-এর জন্য সেই "yes" আগে থেকেই যাচাই করে দিয়ে রাখছেন।</div>
+</div></div>
+
+<div class="step" data-id="s14"><div class="shead"><input type="checkbox"><span class="snum">Step 14</span><h3>Variables, Secrets আর port 22-এর সমাধান</h3><span class="chev">▶</span></div><div class="sbody">
+<p>GitHub repo → <b>Settings → Secrets and variables → Actions</b> খুলুন।</p>
+<table><tr><th>ধরন</th><th>Name</th><th>Value</th></tr>
+<tr><td>Variable</td><td><code>EC2_HOST</code></td><td class="mono" data-bind="ip">EC2_PUBLIC_IP</td></tr>
+<tr><td>Variable</td><td><code>EC2_USER</code></td><td><code>ubuntu</code></td></tr>
+<tr><td>Variable</td><td><code>EC2_APP_DIR</code></td><td><code>/home/ubuntu/incident-management-ubuntu-ec2</code></td></tr>
+<tr><td><b>Secret</b></td><td><code>EC2_SSH_PRIVATE_KEY</code></td><td><code>bongodev_incident_deploy</code> ফাইলের পুরো লেখা, BEGIN আর END লাইনসহ। <b>পেস্ট করার সময় রেকর্ডিং pause করুন।</b></td></tr>
+<tr><td><b>Secret</b></td><td><code>EC2_SSH_KNOWN_HOSTS</code></td><td><code>ec2-host-key.txt</code>-এর পুরো লাইন</td></tr></table>
+<p class="small">Private key কপি করতে PowerShell-এ চালান: <code>Get-Content "$HOME\.ssh\bongodev_incident_deploy" -Raw | Set-Clipboard</code>। এতে key স্ক্রিনে না দেখিয়ে সরাসরি clipboard-এ চলে যায়।</p>
+<div class="warn"><span class="tag">থামুন: এই অবস্থায় push করলে deploy ধাপ timeout হবে</span>Port 22 শুধু আপনার বাসার IP-র জন্য খোলা। এখানে পৌঁছালে আমাকে জানান, তিনটা উপায় থেকে একটা বেছে নেব:<br>
+<b>ক) (আমার পরামর্শ) OIDC দিয়ে সাময়িক রুল:</b> workflow চলার সময় শুধু runner-এর IP-র জন্য ২২ খুলবে, কাজ শেষে বন্ধ হবে। এর জন্য লাব ২-এর মতো একটা IAM role লাগবে, যার পারমিশন শুধু এই একটা security group-এ রুল যোগ করা আর মোছা। এটা সবচেয়ে নিরাপদ, তবে <code>deploy.yml</code>-এ পরিবর্তন লাগবে।<br>
+<b>খ) Self-hosted runner আপনার কম্পিউটারে:</b> তখন runner-এর IP আর আপনার বাসার IP একই হবে। কিন্তু workflow-এ <code>bash</code> আর <code>rsync</code> লাগে, যা Windows-এ সরাসরি নেই, তাই WSL লাগবে। ঝামেলা বেশি।<br>
+<b>গ) সাময়িকভাবে 0.0.0.0/0:</b> নির্দেশনায় নিষেধ করা আছে, তাই এটা <b>করবেন না</b>।</div>
+</div></div>
+
+<div class="step" data-id="s15"><div class="shead"><input type="checkbox"><span class="snum">Step 15</span><h3>Heading বদলে push করুন, আর অটো-ডিপ্লয় দেখুন</h3><span class="chev">▶</span></div><div class="sbody">
+<p>লোকাল <code>frontend/src/main.jsx</code>-এ, VS Code-এ, লাইন ১০১ বদলান:</p>
+<pre>&lt;h1&gt;Incident Command Center — GitHub Actions Deployment&lt;/h1&gt;</pre>
+<pre>git add frontend/src/main.jsx
+git commit -m "Update dashboard heading through CI/CD"
+git push origin main</pre>
+<ol><li>Actions-এ দেখবেন <b>build</b> সবুজ, তারপর <b>deploy</b>-ও সবুজ। Transfer ধাপের শেষে "Deployment complete" লেখা থাকবে।</li>
+<li>ব্রাউজারে <b>Ctrl+F5</b> চাপুন। নতুন heading দেখাবে, আর incidentগুলো আগের মতোই আছে।</li></ol>
+<div class="why"><span class="tag">কী ঘটল</span>Runner আপনার রিপোর কোড <code>rsync</code> দিয়ে সার্ভারে পাঠিয়েছে। পাঠানোর সময় <code>.git</code>, <code>node_modules</code>, <code>dist</code> আর <b><code>backend/.env</code></b> বাদ রেখেছে, যাতে সার্ভারের পাসওয়ার্ড ফাইলে হাত না পড়ে। তারপর SSH দিয়ে <b>ঠিক সেই <code>deploy-ubuntu.sh</code></b> চালিয়েছে, যেটা আপনি Step 6 আর 9-এ হাতে চালিয়েছিলেন। মানুষের করা কাজটাই এখন মেশিন করছে।<br>
+<b>জেনে রাখুন:</b> Step 9-এ সার্ভারে হাতে করা "Updated Manually" পরিবর্তন এই push-এ মুছে যাবে, কারণ <code>rsync --delete</code> রিপোর কপিকেই আসল ধরে। এটাই "Git is the source of truth"-এর মানে।</div>
+<div class="say"><span class="tag">ভিডিওতে বলুন</span>"এবার আমি সার্ভারে ঢুকিনি। শুধু push করেছি। GitHub নিজে build করে, SSH দিয়ে কোড পাঠিয়ে, আমার সেই একই ডিপ্লয় স্ক্রিপ্ট চালিয়েছে।"</div>
+<div class="shot"><span class="tag">স্ক্রিনশট</span><code>13-github-vars-secrets.png</code> (শুধু নামগুলো দেখা যায়, value না), <code>14-actions-run-success.png</code>, <code>15-website-github-actions.png</code></div>
+</div></div>
+
+<!-- PART H -->
+<h2 id="part-h">Part H — Cleanup</h2>
+<div class="step" data-id="s16"><div class="shead"><input type="checkbox"><span class="snum">Step 16</span><h3>সবকিছু বন্ধ আর মুছে ফেলুন</h3><span class="chev">▶</span></div><div class="sbody">
+<ol><li>সব স্ক্রিনশট নেওয়া হয়েছে কিনা মিলিয়ে নিন (<a href="#shots">লিস্ট</a>)।</li>
+<li><b>GitHub (Part G করে থাকলে):</b> Settings-এ গিয়ে <code>EC2_SSH_PRIVATE_KEY</code> আর <code>EC2_SSH_KNOWN_HOSTS</code> secret মুছে ফেলুন। Actions-এ workflow <b>Disable</b> করুন। Option ক নিয়ে থাকলে সেই IAM role-ও ডিলিট করুন।</li>
+<li><b>EC2:</b> <code>bongodev-incident-ubuntu</code> সিলেক্ট করে <b>Instance state → Terminate instance</b>। State <b>Terminated</b> হওয়া পর্যন্ত অপেক্ষা করুন।</li>
+<li><b>EC2 → Volumes:</b> 20 GiB volume-টা নিজে থেকে মুছে গেছে কিনা দেখুন। ডিফল্টে "Delete on termination" চালু থাকে।</li>
+<li><b>EC2 → Elastic IPs:</b> কিছু থাকার কথা না। Elastic IP ব্যবহার না হলেও বিল আসে।</li>
+<li><b>Security group আর Key pair:</b> <code>bongodev-incident-sg</code> আর <code>asifiqrawave</code> key pair মুছে ফেলতে পারেন (অন্য কাজে ব্যবহার না হলে)। এগুলোয় কোনো খরচ নেই, তবে পরিষ্কার রাখা ভালো।</li>
+<li>নিজের কম্পিউটারে deploy key দুটো (<code>bongodev_incident_deploy</code> আর <code>.pub</code>) মুছে ফেলুন।</li></ol>
+<div class="why"><span class="tag">কেন</span>Terminate করলে root volume, আর তার সাথে PostgreSQL-এর সব ডেটা, চিরতরে মুছে যায়। এখানে সেটা ইচ্ছা করেই করা হচ্ছে, কারণ এটা শেখার জন্য বানানো ডেমো, কোনো আসল ডেটা নেই।</div>
+<div class="shot"><span class="tag">স্ক্রিনশট</span><code>16-ec2-terminated.png</code></div>
+</div></div>
+
+<!-- CODE -->
+<h2 id="code">ফাইলগুলো লাইন ধরে</h2>
+<div class="card">
+<h3><code>deploy/nginx-incident-management.conf</code></h3>
+<table>
+<tr><th style="width:40%">লাইন</th><th>মানে</th></tr>
+<tr><td><code>listen 80 default_server;</code></td><td>port 80-এ যত অনুরোধ আসবে, সব এই সাইট নেবে</td></tr>
+<tr><td><code>root /var/www/incident-management;</code></td><td>স্ট্যাটিক ফাইল এই ফোল্ডার থেকে দেওয়া হবে</td></tr>
+<tr><td><code>try_files $uri $uri/ /index.html;</code></td><td>ফাইলটা না পেলে <code>index.html</code> পাঠায়, যাতে React নিজে পেজ দেখাতে পারে (single-page app)</td></tr>
+<tr><td><code>location /api/ { proxy_pass http://127.0.0.1:5000; }</code></td><td>এটাই reverse proxy: <code>/api/...</code> অনুরোধ ভেতরে Node-এর কাছে পাঠানো হয়</td></tr>
+<tr><td><code>proxy_set_header X-Real-IP ...</code></td><td>Node যাতে আসল ব্যবহারকারীর IP জানতে পারে, Nginx-এর IP না</td></tr>
+</table>
+<h3 style="margin-top:20px"><code>/etc/systemd/system/incident-backend.service</code> (deploy স্ক্রিপ্ট এটা বানায়)</h3>
+<table>
+<tr><th style="width:40%">লাইন</th><th>মানে</th></tr>
+<tr><td><code>After=network.target postgresql.service</code></td><td>নেটওয়ার্ক আর DB চালু হওয়ার পরে Node চালু হবে</td></tr>
+<tr><td><code>User=ubuntu</code></td><td>root হিসেবে না, সাধারণ ইউজার হিসেবে চলবে (least privilege)</td></tr>
+<tr><td><code>EnvironmentFile=.../backend/.env</code></td><td>পাসওয়ার্ড আর সেটিং এখান থেকে environment variable হিসেবে আসে, কোডে লেখা থাকে না</td></tr>
+<tr><td><code>Restart=on-failure</code>, <code>RestartSec=3</code></td><td>crash হলে ৩ সেকেন্ড পরে আবার চালু হয়</td></tr>
+<tr><td><code>NoNewPrivileges</code>, <code>ProtectSystem=full</code>, <code>PrivateTmp</code></td><td>বাড়তি নিরাপত্তা: প্রসেস root হতে পারবে না, সিস্টেম ফোল্ডারে লিখতে পারবে না, আর আলাদা /tmp পাবে</td></tr>
+<tr><td><code>WantedBy=multi-user.target</code></td><td><code>enable</code> করার পর প্রতিবার boot-এ নিজে থেকে চালু হয়</td></tr>
+</table>
+<h3 style="margin-top:20px"><code>backend/src/server.js</code> আর <code>db.js</code></h3>
+<table>
+<tr><th style="width:40%">অংশ</th><th>মানে</th></tr>
+<tr><td><code>app.listen(port, host)</code>, host = <code>127.0.0.1</code></td><td>শুধু ভেতরের জন্য শোনে</td></tr>
+<tr><td><code>GET /health</code> → <code>SELECT 1</code></td><td>শুধু "Node চালু আছে কিনা" না, "DB-র সাথে কথা বলা যাচ্ছে কিনা" পর্যন্ত পরীক্ষা করে</td></tr>
+<tr><td><code>pool.query('... $1, $2', [values])</code></td><td>Parameterized query, যা SQL injection থেকে রক্ষা করে</td></tr>
+<tr><td><code>validSeverities</code>, <code>validStatuses</code></td><td>ইনপুট যাচাই। DB-তেও একই নিয়ম <code>CHECK</code> দিয়ে দেওয়া আছে, অর্থাৎ দুই স্তরে সুরক্ষা।</td></tr>
+<tr><td><code>waitForDatabase()</code></td><td>DB তৈরি না থাকলে ৩ সেকেন্ড পরপর ১০ বার চেষ্টা করে। সার্ভার boot হওয়ার সময় এটা কাজে লাগে।</td></tr>
+</table>
+</div>
+
+<!-- TROUBLE -->
+<h2 id="trouble">এরর হলে</h2>
+<div class="card">
+<table>
+<tr><th>লক্ষণ</th><th>সম্ভাব্য কারণ</th><th>সমাধান</th></tr>
+<tr><td><code>UNPROTECTED PRIVATE KEY FILE</code> / <code>bad permissions</code></td><td>Windows-এ .pem-এর permission বেশি খোলা</td><td>Step 2-এর দুটো <code>icacls</code> কমান্ড চালান</td></tr>
+<tr><td><code>ssh: connect ... Connection timed out</code></td><td><b>আপনার বাসার IP বদলে গেছে</b>, VPN চালু আছে, ভুল IP দেওয়া হয়েছে, অথবা ISP port 22 আটকে দিয়েছে</td><td>PowerShell-এ <code>(Invoke-RestMethod https://checkip.amazonaws.com).Trim()</code> চালিয়ে নিজের IP দেখুন, তারপর security group-এর SSH রুলের সাথে মিলিয়ে নিন। না মিললে Edit inbound → Source আবার <b>My IP</b> করুন। <code>Test-NetConnection IP -Port 22</code> দিয়ে পোর্ট পরীক্ষা করুন। Instance Running আছে কিনা, আর Public IPv4 আছে কিনা দেখুন।</td></tr>
+<tr><td><code>Permission denied (publickey)</code></td><td>ভুল .pem, অথবা ইউজার <code>ubuntu</code> না দিয়ে অন্য কিছু</td><td>ইউজারনেম অবশ্যই <code>ubuntu@...</code></td></tr>
+<tr><td>স্ক্রিপ্ট বলে <code>Ubuntu 24.04 required</code></td><td>সার্ভার 26.04 (বা অন্য ভার্শন), অথবা Step 3b করা হয়নি</td><td>26.04 হলে <a href="#s3b">Step 3b</a> করুন। অন্য ভার্শন হলে 24.04 দিয়ে নতুন instance বানান।</td></tr>
+<tr><td>Build চলার সময় <code>Killed</code></td><td>মেমরি কম পড়েছে</td><td><code>free -h</code> দেখুন। Instance Stop করে type বড় করুন (t3.medium), তারপর Start। এতে IP বদলে যাবে।</td></tr>
+<tr><td><code>502 Bad Gateway</code></td><td>Node চালু নেই</td><td><code>sudo journalctl -u incident-backend -n 100 --no-pager</code>, আর <code>curl http://127.0.0.1:5000/health</code></td></tr>
+<tr><td>ব্রাউজারে সাইট খোলে না</td><td>https দিয়ে খোলা হয়েছে, অথবা SG-তে 80 খোলা নেই</td><td><b>http://</b> দিয়ে খুলুন, SG-তে HTTP 80 রুল আছে কিনা দেখুন</td></tr>
+<tr><td>পুরনো heading দেখাচ্ছে</td><td>ব্রাউজার cache</td><td>Ctrl+F5 চাপুন</td></tr>
+<tr><td>Actions deploy: <code>Connection timed out</code></td><td>Runner-এর IP-র জন্য port 22 বন্ধ</td><td>Step 14-এর সমাধান (ক)</td></tr>
+<tr><td>Actions: <code>Host key verification failed</code></td><td>IP বদলেছে, অথবা known_hosts secret ভুল</td><td>Step 13 আবার করুন, তারপর secret আপডেট করুন</td></tr>
+</table>
+</div>
+
+<!-- SHOTS -->
+<h2 id="shots">স্ক্রিনশট লিস্ট</h2>
+<p>README বানানো হবে এই নামগুলো ধরেই। ১–১২ আর ১৬ মূল লাবের জন্য, ১৩–১৫ ঐচ্ছিক অংশের জন্য।</p>
+<div class="card" id="shotlist"></div>
+<p class="small" style="margin-top:40px">উৎস: অ্যাসাইনমেন্টের step-by-step.md, README.md, STUDENT_HOMEWORK.md, docs/GITHUB_ACTIONS.md, scripts/ আর deploy/ ফোল্ডার। AWS কনসোলের মেনুর নাম মাঝেমধ্যে একটু বদলায়।</p>
+</main>
+</div>
+
+<script>
+const LS='aws-incident-ec2-guide-v1';
+function load(){try{return JSON.parse(localStorage.getItem(LS))||{}}catch(e){return {}}}
+function save(s){try{localStorage.setItem(LS,JSON.stringify(s))}catch(e){}}
+let state=load(); state.done=state.done||{}; state.cfg=state.cfg||{}; state.shots=state.shots||{};
+const shots=[
+ ['01-ec2-running.png','EC2 Running, Ubuntu, t3.small (Account ID blur)'],
+ ['02-security-group.png','Inbound: 22 My IP, 80 Anywhere (নিজের IP blur)'],
+ ['03-ssh-connected.png','os-release, whoami'],
+ ['04-versions.png','node -v, psql --version, nginx -v'],
+ ['05-db-setup.png','\\l আর \\du (পাসওয়ার্ড ছাড়া)'],
+ ['06-deploy-complete.png','deploy-ubuntu.sh শেষ, health healthy'],
+ ['07-backend-status-health.png','systemctl status incident-backend, curl /health'],
+ ['08-verify-check-services.png','verify.sh PASS, socket লিস্ট'],
+ ['09-website.png','Incident Command Center, public IP দিয়ে'],
+ ['10-incident-created.png','নতুন incident, status বদলানো'],
+ ['11-db-proof.png','psql SELECT-এর আউটপুট'],
+ ['12-heading-updated-manually.png','Updated Manually heading, সাথে আগের ডেটা'],
+ ['13-github-vars-secrets.png','(ঐচ্ছিক) শুধু Variable আর Secret-এর নাম'],
+ ['14-actions-run-success.png','(ঐচ্ছিক) build আর deploy সবুজ'],
+ ['15-website-github-actions.png','(ঐচ্ছিক) GitHub Actions Deployment heading'],
+ ['16-ec2-terminated.png','Instance Terminated']
+];
+const sl=document.getElementById('shotlist');
+sl.innerHTML=shots.map(([f,d])=>`<label style="display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);cursor:pointer"><input type="checkbox" data-shot="${f}" style="accent-color:var(--green);width:18px;height:18px"><code>${f}</code><span class="small">${d}</span></label>`).join('');
+sl.querySelectorAll('input').forEach(i=>{i.checked=!!state.shots[i.dataset.shot];i.addEventListener('change',()=>{state.shots[i.dataset.shot]=i.checked;save(state)})});
+const steps=[...document.querySelectorAll('.step')];
+function progress(){const n=steps.filter(s=>state.done[s.dataset.id]).length;document.getElementById('pct').textContent=n+' / '+steps.length;document.getElementById('barfill').style.width=(100*n/steps.length)+'%'}
+steps.forEach(s=>{
+  const cb=s.querySelector('.shead input');
+  cb.checked=!!state.done[s.dataset.id]; s.classList.toggle('done',cb.checked);
+  cb.addEventListener('click',e=>e.stopPropagation());
+  cb.addEventListener('change',()=>{state.done[s.dataset.id]=cb.checked;s.classList.toggle('done',cb.checked);save(state);progress();
+    if(cb.checked){s.classList.remove('open');const nx=steps[steps.indexOf(s)+1];if(nx&&!state.done[nx.dataset.id])nx.classList.add('open')}});
+  s.querySelector('.shead').addEventListener('click',()=>s.classList.toggle('open'));
+});
+const firstOpen=steps.find(s=>!state.done[s.dataset.id]); if(firstOpen)firstOpen.classList.add('open');
+progress();
+document.getElementById('expandAll').onclick=()=>{const any=steps.some(s=>!s.classList.contains('open'));steps.forEach(s=>s.classList.toggle('open',any))};
+document.getElementById('reset').onclick=function(){if(this.dataset.c){state.done={};state.shots={};save(state);location.reload()}else{this.dataset.c=1;this.textContent='নিশ্চিত? আবার চাপুন';setTimeout(()=>{delete this.dataset.c;this.textContent='টিক মুছুন'},3000)}};
+const ids={ip:'cfg-ip',pem:'cfg-pem',zip:'cfg-zip',owner:'cfg-owner',repo:'cfg-repo',region:'cfg-region'};
+for(const k in ids){const el=document.getElementById(ids[k]);if(state.cfg[k])el.value=state.cfg[k];el.addEventListener('input',()=>{state.cfg[k]=el.value.trim();save(state);render()})}
+function v(k,fb){const x=document.getElementById(ids[k]).value.trim();return x||fb}
+function setPre(id,txt){const p=document.getElementById(id);p.textContent=txt;const b=document.createElement('button');b.className='copy';b.textContent='Copy';
+  b.onclick=async()=>{try{await navigator.clipboard.writeText(txt);b.textContent='কপি হয়েছে'}catch(e){const r=document.createRange();r.selectNodeContents(p);const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='সিলেক্ট হয়েছে, Ctrl+C চাপুন'}setTimeout(()=>b.textContent='Copy',1800)};p.appendChild(b)}
+function render(){
+  const IP=v('ip','EC2_PUBLIC_IP'),PEM=v('pem','$HOME\\Downloads\\asifiqrawave.pem'),ZIP=v('zip','$HOME\\Downloads\\incident-management-ubuntu-ec2.zip'),O=v('owner','YOUR_USER'),R=v('repo','bongodev-incident-native'),RG=v('region','us-east-1');
+  document.querySelectorAll('[data-bind]').forEach(e=>{e.textContent={ip:IP,owner:O,repo:R,region:RG}[e.dataset.bind]});
+  setPre('icacls',`icacls.exe "${PEM}" /inheritance:r\nicacls.exe "${PEM}" /grant:r "$($env:USERNAME):(R)"`);
+  setPre('sshcmd',`ssh -i "${PEM}" ubuntu@${IP}`);
+  setPre('scpcmd',`scp -i "${PEM}" "${ZIP}" ubuntu@${IP}:/home/ubuntu/`);
+  document.getElementById('siteurl').textContent=`http://${IP}/`;
+  setPre('gitcmds3',`git init\ngit branch -M main\ngit add .\ngit status\ngit commit -m "Initial native incident management lab"\ngit remote add origin https://github.com/${O}/${R}.git\ngit push -u origin main`);
+  setPre('addkey',`Get-Content "$HOME\\.ssh\\bongodev_incident_deploy.pub" | ssh -i "${PEM}" ubuntu@${IP} "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"`);
+  setPre('testkey',`ssh -i "$HOME\\.ssh\\bongodev_incident_deploy" ubuntu@${IP} "whoami && hostname"`);
+  setPre('keyscan',`ssh-keyscan -t ed25519 ${IP} | Out-File -Encoding ascii ec2-host-key.txt\nssh-keygen -lf ec2-host-key.txt`);
+}
+render();
+
+</script>
+</body>
+</html>
