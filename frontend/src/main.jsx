@@ -98,7 +98,7 @@ function App() {
       <header className="hero">
         <div>
           <p className="eyebrow">Native Deployment Lab</p>
-          <h1>Incident Command Center</h1>
+          <h1>Incident ooaaow Command Center</h1>
           <p>React frontend · Express API · PostgreSQL database</p>
         </div>
         <div className="summary-card">
